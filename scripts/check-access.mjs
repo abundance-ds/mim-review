@@ -72,15 +72,15 @@ try {
   assert.equal(new URL(page.url()).hash, '#start');
   assert.equal(await page.$eval('#invitation-code', el => el.value), '');
   await page.click('#copy-prompt');
-  await page.waitForFunction(() => document.getElementById('copy-prompt').textContent === 'Copied');
+  await page.waitForFunction(() => document.getElementById('copy-prompt').dataset.copied === 'true');
   const prompt = await page.evaluate(() => navigator.clipboard.readText());
   assert.equal(prompt, await page.$eval('#setup-prompt', el => el.value));
-  assert.match(prompt, /get_review_instructions/); assert.match(prompt, /wait for my manuscript/);
+  assert.match(prompt, /Connect to this MCP, confirm status using get_review_instructions/); assert.match(prompt, /await my manuscript for peer review/);
   const link = prompt.split('\n')[1];
   assert.ok(link.startsWith(origin + '/connect/'));
   assert.equal(await page.$eval('#mcp-url', el => el.value), origin + '/mcp');
   await page.click('#copy-url');
-  await page.waitForFunction(() => document.getElementById('copy-url').textContent === 'Copied');
+  await page.waitForFunction(() => document.getElementById('copy-url').dataset.copied === 'true');
   assert.equal(await page.evaluate(() => navigator.clipboard.readText()), origin + '/mcp');
   const setupText = await fetch(link).then(r => r.text());
   const token = /Authorization header: Bearer (\S+)/.exec(setupText)[1];

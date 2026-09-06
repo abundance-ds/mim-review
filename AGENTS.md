@@ -22,3 +22,5 @@ Standalone Node service. No AI calls. The connected agent performs the review.
 - Keep homepage copy minimal without shortening the review methodology. Preserve detailed reviewer roles, independent-pass handoffs, per-reviewer depth guidance, and completeness checks when changing setup or transport instructions.
 
 - Preserve the original Shoulders reviewer and synthesis prompts pinned in test/original-review-prompts.json. Changes to these prompts are limited to documented tool, submission, anchor, and Markdown mechanics unless the owner explicitly requests changes to review content. The main agent launches three parallel reviewers and performs synthesis itself.
+
+- Production deployment requires the owner’s local manual review and explicit confirmation.

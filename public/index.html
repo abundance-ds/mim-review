@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="Review papers with your own AI.">
-  <title>AI peer review MCP</title>
+  <meta name="description" content="mim-review is an MCP server to help your AI do better peer review. It provides instructions, guidelines and tools.">
+  <title>mim-review MCP</title>
   <link rel="stylesheet" href="/style.css">
   <link rel="alternate" type="text/plain" href="/llms.txt" title="Agent documentation">
   <script src="/app.js" defer></script>
@@ -15,35 +15,35 @@
   <div class="page">
     <main>
       <section class="intro">
-        <h1>AI peer review MCP</h1>
-        <p class="lead">Review papers with your own AI.</p>
-        <p class="small">Files kept ≤30 min. No AI processing or training on this server.</p>
-        <p class="help-links"><a href="/info">Get started</a><a href="/llms.txt">Agent instructions</a></p>
+        <h1>mim-review MCP</h1>
+        <p class="description">mim-review is an MCP server to help your AI do better peer review. It provides instructions, guidelines and tools. Your files may be kept shortly (≤30 min). No AI processing or training on this server.</p>
+        <p>mim-review is in research preview. Contact us if you would like to join.</p>
+        <p>Contact: <a href="mailto:pschneider@abundanceds.com">pschneider@abundanceds.com</a></p>
       </section>
       <section class="workspace" aria-label="Start a review">
         <form id="invitation-form" hidden>
           <h2>Enter your invitation code</h2>
           <div class="endpoint"><label class="visually-hidden" for="invitation-code">Invitation code</label><input id="invitation-code" type="password" autocomplete="off" required maxlength="200" placeholder="Invitation code"><button type="submit">Continue</button></div>
-          <p class="small">Ask the person who invited you for a code.</p>
         </form>
         <div id="connection-fields" hidden>
-          <div class="connection-field">
-            <h2><label for="setup-prompt">Set up with your agent</label></h2>
-            <p>Paste this prompt into your AI conversation.</p>
-            <div class="copy-field"><textarea id="setup-prompt" readonly rows="8" spellcheck="false" aria-label="Setup prompt"></textarea><button id="copy-prompt" type="button" disabled>Copy to clipboard</button></div>
-          </div>
-          <div class="connection-field">
-            <h2><label for="mcp-url">Set up manually</label></h2>
-            <p>Add this URL in your AI app’s MCP settings.</p>
-            <div class="copy-field"><input id="mcp-url" readonly aria-label="MCP server URL"><button id="copy-url" type="button" disabled>Copy to clipboard</button></div>
-            <p class="small"><a href="/info">Setup instructions</a></p>
-          </div>
+          <h2>Two ways to connect</h2>
+          <ol class="connection-options">
+            <li>
+              <label for="setup-prompt">Let AI set up the MCP for you (give your agent the prompt below)</label>
+              <div class="copy-field"><textarea id="setup-prompt" readonly rows="4" spellcheck="false"></textarea><button id="copy-prompt" class="copy-button" type="button" aria-label="Copy setup prompt" title="Copy to clipboard" disabled><svg class="copy-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"/></svg><svg class="check-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg><span class="copy-feedback" aria-hidden="true">Copied</span></button></div>
+            </li>
+            <li>
+              <label for="mcp-url">Setup manually</label>
+              <div class="copy-field"><textarea id="mcp-url" readonly rows="1" spellcheck="false"></textarea><button id="copy-url" class="copy-button" type="button" aria-label="Copy MCP URL" title="Copy to clipboard" disabled><svg class="copy-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"/></svg><svg class="check-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg><span class="copy-feedback" aria-hidden="true">Copied</span></button></div>
+            </li>
+          </ol>
+          <span id="copy-status" class="visually-hidden" role="status"></span>
         </div>
         <p id="error" role="alert" hidden></p>
         <noscript><p>See <a href="/info">setup instructions</a> for the connection URL.</p></noscript>
       </section>
     </main>
-    <footer><a href="https://github.com/abundance-ds/mim-review">github</a></footer>
+    <footer><a href="/info">Help</a><a href="https://github.com/abundance-ds/mim-review">github</a></footer>
   </div>
 </body>
 </html>
