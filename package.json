@@ -1,0 +1,37 @@
+{
+  "name": "mim-review",
+  "version": "0.3.0",
+  "private": true,
+  "type": "module",
+  "description": "Document conversion and peer review methodology for your own AI agent. No hosted AI.",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "start": "node --env-file-if-exists=.env src/server.js",
+    "dev": "node --env-file-if-exists=.env --watch src/server.js",
+    "test": "node --test test/*.test.js",
+    "test:browser": "node scripts/check-reader.mjs",
+    "check": "node --check src/server.js",
+    "test:access-browser": "node scripts/check-access.mjs",
+    "test:codex-oauth": "node scripts/check-codex-oauth.mjs"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/node": "^2.0.0",
+    "@modelcontextprotocol/server": "^2.0.0",
+    "fflate": "^0.8.3",
+    "linkedom": "^0.18.13",
+    "mammoth": "^1.12.2",
+    "marked": "^18.0.11",
+    "pdf-parse": "^2.4.5",
+    "sanitize-html": "^2.17.7",
+    "turndown": "^7.2.4",
+    "turndown-plugin-gfm": "^1.0.2",
+    "zod": "^4.5.4"
+  },
+  "devDependencies": {
+    "@modelcontextprotocol/client": "^2.0.0",
+    "pdf-lib": "^1.17.1",
+    "puppeteer-core": "^25.10.0"
+  }
+}

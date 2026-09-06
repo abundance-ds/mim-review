@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Review papers with your own AI.">
+  <title>AI peer review MCP</title>
+  <link rel="stylesheet" href="/style.css">
+  <link rel="alternate" type="text/plain" href="/llms.txt" title="Agent documentation">
+  <script src="/app.js" defer></script>
+</head>
+<body>
+  <img class="earth" src="/media/earth.jpg" alt="" draggable="false">
+  <div class="shade"></div>
+  <div class="page">
+    <main>
+      <section class="intro">
+        <h1>AI peer review MCP</h1>
+        <p class="lead">Review papers with your own AI.</p>
+        <p class="small">Files kept ≤30 min. No AI processing or training on this server.</p>
+        <p class="help-links"><a href="/info">Get started</a><a href="/llms.txt">Agent instructions</a></p>
+      </section>
+      <section class="workspace" aria-label="Start a review">
+        <form id="invitation-form" hidden>
+          <h2>Enter your invitation code</h2>
+          <div class="endpoint"><label class="visually-hidden" for="invitation-code">Invitation code</label><input id="invitation-code" type="password" autocomplete="off" required maxlength="200" placeholder="Invitation code"><button type="submit">Continue</button></div>
+          <p class="small">Ask the person who invited you for a code.</p>
+        </form>
+        <div id="connection-fields" hidden>
+          <div class="connection-field">
+            <h2><label for="setup-prompt">Set up with your agent</label></h2>
+            <p>Paste this prompt into your AI conversation.</p>
+            <div class="copy-field"><textarea id="setup-prompt" readonly rows="8" spellcheck="false" aria-label="Setup prompt"></textarea><button id="copy-prompt" type="button" disabled>Copy to clipboard</button></div>
+          </div>
+          <div class="connection-field">
+            <h2><label for="mcp-url">Set up manually</label></h2>
+            <p>Add this URL in your AI app’s MCP settings.</p>
+            <div class="copy-field"><input id="mcp-url" readonly aria-label="MCP server URL"><button id="copy-url" type="button" disabled>Copy to clipboard</button></div>
+            <p class="small"><a href="/info">Setup instructions</a></p>
+          </div>
+        </div>
+        <p id="error" role="alert" hidden></p>
+        <noscript><p>See <a href="/info">setup instructions</a> for the connection URL.</p></noscript>
+      </section>
+    </main>
+    <footer><a href="https://github.com/abundance-ds/mim-review">github</a></footer>
+  </div>
+</body>
+</html>

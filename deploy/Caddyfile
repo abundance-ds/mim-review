@@ -1,0 +1,13 @@
+# Set REVIEW_DOMAIN in Caddy's environment, or replace this with the chosen domain.
+# Add this as a separate site block; do not replace other sites on the server.
+{$REVIEW_DOMAIN} {
+    request_body {
+        max_size 34MB
+    }
+    reverse_proxy 127.0.0.1:3334 {
+        flush_interval -1
+        transport http {
+            response_header_timeout 60s
+        }
+    }
+}

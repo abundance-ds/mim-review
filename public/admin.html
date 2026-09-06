@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex,nofollow"><title>Admin · AI peer review MCP</title><link rel="stylesheet" href="/style.css"><script src="/admin.js" defer></script></head>
+<body><div class="page admin-page"><main class="admin-main">
+  <div class="admin-heading"><h1>Admin</h1><div class="admin-actions" id="admin-actions" hidden><button id="refresh" class="text-button">Refresh</button><button id="download-logs" class="text-button">Download CSV</button><button id="logout" class="text-button">Sign out</button></div></div>
+  <form id="admin-login" class="admin-login"><label for="admin-token">Admin token</label><div class="endpoint"><input id="admin-token" type="password" required autocomplete="off" placeholder="Admin token"><button type="submit">Continue</button></div></form>
+  <p id="admin-error" role="alert" hidden></p>
+  <div id="dashboard" hidden>
+    <section class="admin-section"><h2>Invitations</h2>
+      <form id="create-invitation" class="invitation-create"><label class="visually-hidden" for="person-name">Name or email</label><input id="person-name" placeholder="Name or email" required maxlength="100" autocomplete="off"><button class="plain-button" type="submit">Create invitation</button></form>
+      <div id="issued" hidden><label id="issued-label" for="issued-value">Invitation code</label><div class="endpoint"><input id="issued-value" readonly><button id="copy-issued" type="button">Copy code</button></div><div id="issued-link" hidden><label for="issued-url">Invitation link</label><div class="endpoint"><input id="issued-url" readonly><button id="copy-issued-url" type="button">Copy link</button></div></div></div>
+      <div class="table-scroll"><table><thead><tr><th>Person</th><th>Today</th><th>Last used</th><th>Calls / errors</th><th>Access</th></tr></thead><tbody id="users"></tbody></table></div>
+      <p id="no-users" class="small">No invitations yet.</p>
+    </section>
+    <section class="admin-section"><h2>Agent keys</h2><div class="table-scroll"><table><thead><tr><th>Person</th><th>Created</th><th>Access</th></tr></thead><tbody id="keys"></tbody></table></div><p id="no-keys" class="small">Keys appear when an agent opens a setup link.</p></section>
+    <section class="admin-section"><h2>Recent usage</h2><p class="small">Last 100 events. CSV includes 90 days. Times are UTC. No document information is recorded.</p><div class="table-scroll"><table><thead><tr><th>When</th><th>Who</th><th>What</th><th>Result</th></tr></thead><tbody id="events"></tbody></table></div><p id="no-events" class="small">No usage yet.</p></section>
+  </div>
+</main><footer><a href="/">home</a></footer></div></body></html>
