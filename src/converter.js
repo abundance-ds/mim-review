@@ -1,9 +1,10 @@
 import { Worker } from 'node:worker_threads';
+import { ServiceError } from './service-error.js';
 let active = 0;
 
 async function runIsolated(workerData, signal) {
   if (signal?.aborted) throw new Error('Request cancelled.');
-  if (active >= 2) throw Object.assign(new Error('Two requests are already processing. Please retry in a moment.'), { status: 503 });
+  if (active >= 2) throw new ServiceError('processing_busy', 'Two documents are already processing.', 'Retry this tool in a few seconds. Do not shorten or skip the review.', 503);
   active++;
   try {
     return await new Promise((resolve, reject) => {

@@ -1,13 +1,32 @@
-# Get started
+# Connect
 
-Add `{{BASE_URL}}/mcp` in your AI app’s MCP settings. Connect and enter your invitation code when asked. The service supports Streamable HTTP and OAuth with automatic client registration or hosted client metadata; no client ID or secret is needed.
+Use the private MCP URL shown on the homepage. The copied prompt and manual field use the same URL, with access included. Keep it private.
 
-Or copy the setup prompt from the homepage into your AI conversation. The agent should configure the connection, call `get_review_instructions`, read it in full, confirm access, then wait for your manuscript. If the app requires manual connector setup, the agent should guide you through it before starting a review.
+## Claude web
 
-Private `/connect/…` links are setup instructions for agents, not MCP endpoints. They are reusable and return the same Bearer token, valid until revoked. Agents able to configure private headers can use that token for MCP and processing HTTP requests. Keep tokens private. Existing Bearer-token connections continue to work alongside OAuth. Open installations need no authentication.
+1. Open **Customize → Connectors → Add custom connector**.
+2. Enter a name and your private MCP URL. Use **None** for authentication, then select **Add → Connect**.
+3. In your conversation, open **+ → Connectors** and enable it if needed.
+4. Ask Claude to call `get_review_instructions`, then provide your manuscript.
 
-For manual setup in Claude, use the MCP URL above, **Always required**, and **Use Anthropic’s hosted client metadata**. Leave client credentials empty. Click Connect and use your invitation code. Code is only requested when your browser has not already remembered your invitation.
+Claude web cannot add its own connector from a prompt. Its connection comes from Anthropic's servers, so use the public HTTPS URL, not localhost. [Claude connector setup](https://support.claude.com/en/articles/11175166-get-started-with-custom-connectors-using-remote-mcp).
 
-Your AI performs the review. Documents stay in server memory for up to 30 minutes; reviews download as standalone HTML.
+## Coding agents
+
+Paste the homepage prompt into your agent. It should configure the exact URL and call `get_review_instructions`. If newly added tools are unavailable, reconnect or open a fresh session as the client requires. A saved configuration alone does not confirm access.
+
+## Your review
+
+Your AI performs the review. Word is preferred; PDF extraction has no OCR or figures. If the AI cannot upload the file itself, use the upload control or browser link it provides. In Claude, send the prepared message after uploading to continue.
+
+When the review is ready, use **Download HTML review** or open the file saved by your agent. If your client has no download control, the agent supplies a `review.json` file and a browser export link: open the link, choose the JSON, and download the HTML. The page also accepts pasted review JSON.
+
+Save the HTML locally. It opens offline with its manuscript, comments, and available figures. Documents stay in server memory for up to 30 minutes; reviews are returned directly and are never hosted. If a document expires before export, re-upload the original and keep the completed review.
+
+## Other connection options
+
+The canonical `{{BASE_URL}}/mcp` supports OAuth on protected installations. In Claude, choose **Always required** and **Use Anthropic’s hosted client metadata**, then enter your invitation code. This is optional; the homepage's private URL needs no separate authentication. Open installations need none.
+
+Existing private `/connect/…` links and bearer credentials continue working until revoked. The transport is Streamable HTTP.
 
 [Service health]({{BASE_URL}}/health) · [Full review instructions]({{BASE_URL}}/llms.txt) · [Skill source](https://raw.githubusercontent.com/abundance-ds/mim-review/main/skills/peer-review/SKILL.md)

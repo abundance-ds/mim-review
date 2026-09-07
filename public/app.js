@@ -8,7 +8,7 @@ if (incomingUrl.searchParams.has('invite')) {
 const error = message => { $('error').textContent = message; $('error').hidden = !message; };
 async function jsonResponse(response) {
   const body = await response.json();
-  if (!response.ok) throw new Error(body.error || 'The request failed. Please try again.');
+  if (!response.ok) throw Object.assign(new Error(body.error || 'The request failed. Please try again.'), { status: response.status });
   return body;
 }
 const accessPost = (action, body = {}) => fetch('/api/access/' + action, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).then(jsonResponse);
@@ -24,8 +24,22 @@ async function loadConfig() {
   $('invitation-form').hidden = connected || invitationCode !== null;
   $('connection-fields').hidden = !connected;
   if (!connected) { $('setup-prompt').value = ''; $('mcp-url').value = ''; return; }
-  $('mcp-url').value = config.mcp_url; $('copy-url').disabled = false;
-  const link = config.protected ? (await accessPost('handoff')).url : new URL('/info.md', config.mcp_url).href;
+  let link = config.mcp_url;
+  if (config.protected) {
+    try { link = (await accessPost('handoff')).url; }
+    catch (cause) {
+      $('connection-fields').hidden = true;
+      $('setup-prompt').value = ''; $('mcp-url').value = '';
+      $('copy-prompt').disabled = true; $('copy-url').disabled = true;
+      if (cause.status === 401) {
+        $('invitation-form').hidden = false;
+        error('Connection revoked. Enter your invitation code to reconnect.');
+        return;
+      }
+      throw cause;
+    }
+  }
+  $('mcp-url').value = link; $('copy-url').disabled = false;
   $('setup-prompt').value = `Connect to this MCP, confirm status using get_review_instructions, and then await my manuscript for peer review:
 ${link}`;
   $('copy-prompt').disabled = false; fitPrompt();

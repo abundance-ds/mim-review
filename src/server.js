@@ -1,4 +1,8 @@
 import http from 'node:http';
+import { createTransfers } from './transfers.js';
+import { exportPage } from './export-page.js';
+import { uploadPage } from './upload-page.js';
+import { ServiceError } from './service-error.js';
 import { createOAuthHandler } from './oauth.js';
 import { readFile } from 'node:fs/promises';
 import { resolve, join } from 'node:path';
@@ -18,19 +22,9 @@ import { textDocument } from './convert.js';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const mime = { '.html': 'text/html; charset=utf-8', '.css': 'text/css; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.woff2': 'font/woff2', '.jpg': 'image/jpeg' };
-const staticFiles = new Map([['/', 'index.html'], ['/style.css', 'style.css'], ['/app.js', 'app.js'], ['/admin', 'admin.html'], ['/admin.js', 'admin.js'], ['/fonts/InstrumentSans-Variable.woff2', 'fonts/InstrumentSans-Variable.woff2'], ['/fonts/InstrumentSans-Italic.woff2', 'fonts/InstrumentSans-Italic.woff2'], ['/media/earth.jpg', 'media/earth.jpg']]);
+const staticFiles = new Map([['/', 'index.html'], ['/style.css', 'style.css'], ['/app.js', 'app.js'], ['/upload.js', 'upload.js'], ['/export.js', 'export.js'], ['/admin', 'admin.html'], ['/admin.js', 'admin.js'], ['/fonts/InstrumentSans-Variable.woff2', 'fonts/InstrumentSans-Variable.woff2'], ['/fonts/InstrumentSans-Italic.woff2', 'fonts/InstrumentSans-Italic.woff2'], ['/media/earth.jpg', 'media/earth.jpg']]);
 const failure = (message, status = 400) => Object.assign(new Error(message), { status });
 
-async function readBody(req, max) {
-  if (Number(req.headers['content-length'] || 0) > max) throw failure('Request is too large.', 413);
-  const chunks = []; let size = 0;
-  for await (const chunk of req) {
-    size += chunk.length;
-    if (size > max) throw failure('Request is too large.', 413);
-    chunks.push(chunk);
-  }
-  return Buffer.concat(chunks);
-}
 
 export async function createService({ baseUrl = process.env.BASE_URL || 'http://localhost:3334', accessToken = process.env.PROTECT_APP === undefined ? process.env.ACCESS_TOKEN || '' : '', trustProxy = process.env.TRUST_PROXY === '1', protectApp = process.env.PROTECT_APP === 'true', adminToken = process.env.ADMIN_TOKEN || '', accessDb = process.env.ACCESS_DB || resolve(root, '.state/access.sqlite'), oauthFetch = fetch } = {}) {
   let origin = new URL(baseUrl).origin;
@@ -41,13 +35,30 @@ export async function createService({ baseUrl = process.env.BASE_URL || 'http://
   const requiresToken = protectApp || !!accessToken;
   const context = new AsyncLocalStorage();
   const documents = createDocumentStore();
+  const transfers = createTransfers({ active: identity => !access || access.isActive(identity) });
   const rates = new Map();
   const requests = new Set();
-  let activeRequests = 0;
+  let bufferedBytes = 0;
+  const bufferedBodies = new Map();
+  async function readBody(req, max) {
+    if (Number(req.headers['content-length'] || 0) > max) throw failure('Request is too large.', 413);
+    const chunks = []; let size = 0;
+    for await (const chunk of req.iterator({ destroyOnReturn: false })) {
+      size += chunk.length;
+      if (size > max) throw failure('Request is too large.', 413);
+      if (bufferedBytes + chunk.length > MAX_JSON_BYTES) throw failure('Upload capacity is busy. Please retry in a moment.', 503);
+      bufferedBytes += chunk.length;
+      bufferedBodies.set(req, (bufferedBodies.get(req) || 0) + chunk.length);
+      chunks.push(chunk);
+    }
+    return Buffer.concat(chunks);
+  }
+
+  let activeRequests = 0, activeTransfers = 0;
   const permittedOrigins = new Set((process.env.ALLOWED_ORIGINS || '').split(',').filter(Boolean));
   const checkHost = hostHeaderValidation([new URL(origin).hostname, 'localhost', '127.0.0.1', '[::1]']);
   const owner = () => context.getStore()?.id || null;
-  const mcp = createMcpHandler(() => createReviewServer({ baseUrl: origin, requiresToken, store: documents, owner, observe: (operation, outcome) => access?.record(context.getStore(), operation, outcome) }), { legacy: 'stateless', maxSubscriptions: 8 });
+  const mcp = createMcpHandler(() => createReviewServer({ baseUrl: origin, requiresToken, store: documents, owner, transfers, identity: () => context.getStore(), observe: (operation, outcome) => access?.record(context.getStore(), operation, outcome) }), { legacy: 'stateless', maxSubscriptions: 8 });
   const handleMcp = toNodeHandler(mcp);
   const auth = req => {
     if (protectApp) return access.authenticate(bearer(req), 'agent', origin + '/mcp');
@@ -102,9 +113,18 @@ export async function createService({ baseUrl = process.env.BASE_URL || 'http://
     res.setHeader('Content-Security-Policy', "default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'");
     try {
       if (!checkHost(req, res)) return;
-      const url = new URL(req.url, origin), path = url.pathname;
+      const url = new URL(req.url, origin); let path = url.pathname;
       if (oauth && await oauth(req, res, url)) return;
-      if (req.headers.origin && req.headers.origin !== origin && !permittedOrigins.has(req.headers.origin)) throw failure('Origin is not allowed.', 403);
+      const isTransfer = /^\/transfer\/(upload|export)\/[A-Za-z0-9_-]{43}$/.test(path);
+      if (isTransfer) {
+        // Only possession-based transfer URLs allow app-frame cross-origin requests.
+        // Browser cookies and OAuth headers grant no access on these routes.
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+        res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-Filename');
+        if (req.method === 'OPTIONS') { res.writeHead(204); return res.end(); }
+      }
+      if (req.headers.origin && req.headers.origin !== origin && !permittedOrigins.has(req.headers.origin) && !isTransfer) throw failure('Origin is not allowed.', 403);
       if (path.startsWith('/api/admin/')) {
         rate(req, 'admin', 120, 60_000);
         if (!adminToken || !equalSecret(bearer(req), adminToken)) throw failure('An admin token is required.', 401);
@@ -144,11 +164,15 @@ export async function createService({ baseUrl = process.env.BASE_URL || 'http://
           return send(res, 200, { ok: true });
         }
         const identity = browserAuth(req);
-        if (path === '/api/access/handoff') return send(res, 201, { url: `${origin}/connect/${access.handoff(browserToken(req))}` });
+        if (path === '/api/access/handoff') {
+          const linkToken = access.handoff(browserToken(req));
+          access.claim(linkToken); // Never present a connection whose key was explicitly revoked.
+          return send(res, 201, { url: `${origin}/mcp/${linkToken}` });
+        }
         if (path === '/api/access/logout') { access.revokeKey(identity.credential_id); setBrowserCookie(res, ''); return send(res, 200, { ok: true }); }
         throw failure('Not found.', 404);
       }
-      if (req.method === 'GET' && /^\/connect\/[A-Za-z0-9_-]{43}$/.test(path)) {
+      if (req.method === 'GET' && !req.headers.accept?.includes('text/event-stream') && /^\/connect\/[A-Za-z0-9_-]{43}$/.test(path)) {
         rate(req, 'handoff', 30, 60_000);
         if (!protectApp) throw failure('Invitation access is not enabled.', 404);
         res.setHeader('X-Robots-Tag', 'noindex, nofollow, noarchive');
@@ -156,10 +180,16 @@ export async function createService({ baseUrl = process.env.BASE_URL || 'http://
         const setup = `# Private connection setup\n\nThis private setup link is reusable and does not expire. Save the credential securely before continuing. Do not print it in your reply, put it in a URL, commit it, or include it in logs.\n\nMCP endpoint: ${origin}/mcp\nAuthorization header: Bearer ${token}\n\nConfigure this header in the client's private MCP settings. Use the same header for HTTP conversion, validation, and export. If you cannot configure MCP headers, use the HTTP workflow with a private credential file, or explain the client's limitation. Do not claim the connection works until you have called a tool. Never send this credential to any other origin.\n\n`;
         return send(res, 200, setup + agentPage('info', origin) + '\n\n' + workflowDocument(origin), 'text/markdown; charset=utf-8');
       }
-      if (path === '/mcp') {
-        rate(req, 'mcp', 180, 60_000); const identity = auth(req);
+      const privateMcp = path.match(/^\/(?:mcp|connect)\/([A-Za-z0-9_-]{43})$/);
+      if (path === '/mcp' || privateMcp) {
+        res.setHeader('X-Robots-Tag', 'noindex, nofollow, noarchive');
+        rate(req, 'mcp', 180, 60_000);
+        if (privateMcp && !protectApp) throw failure('Invitation access is not enabled.', 404);
+        const identity = privateMcp ? access.authenticate(access.claim(privateMcp[1])) : auth(req);
+        // The SDK serves one transport path; authenticate the private URL before normalizing it.
+        req.url = '/mcp';
         if (req.method === 'POST') {
-          if (activeRequests >= 2) throw failure('Two requests are already processing. Please retry in a moment.', 503);
+          if (activeRequests >= 32) throw failure('The service is busy. Please retry in a moment.', 503);
           activeRequests++;
           try {
             if (!req.headers['content-type']?.includes('application/json')) throw failure('Use application/json.', 415);
@@ -198,8 +228,23 @@ export async function createService({ baseUrl = process.env.BASE_URL || 'http://
       if (req.method === 'GET' && path === '/api/guidance') return send(res, 200, listGuidance());
       if (req.method === 'GET' && path.startsWith('/guidance/')) return send(res, 200, readGuidance(decodeURIComponent(path.slice(10))).content, 'text/markdown; charset=utf-8');
       if (req.method === 'GET' && path === '/attribution') return send(res, 200, await readFile(join(root, 'ATTRIBUTION.md')), 'text/plain; charset=utf-8');
+      const transferMatch = path.match(/^\/transfer\/(upload|export)\/([A-Za-z0-9_-]{43})$/);
+      let transfer;
+      if (transferMatch) {
+        rate(req, 'transfer', 120, 3600_000);
+        res.setHeader('X-Robots-Tag', 'noindex, nofollow, noarchive');
+        transfer = transfers.get(transferMatch[2], transferMatch[1]);
+        if (req.method === 'GET') return send(res, 200, transferMatch[1] === 'upload' ? uploadPage() : exportPage(), 'text/html; charset=utf-8');
+        if (req.method !== 'POST') throw failure('Use POST to transfer the file.', 405);
+        if (transfer.busy) throw new ServiceError('transfer_busy', 'This transfer is already processing.', 'Wait for it to finish, then retry.', 409);
+        if (transferMatch[1] === 'upload' && transfer.documentId) {
+          documents.get(transfer.documentId, transfer.identity?.id);
+          req.resume(); return send(res, 200, { document_id: transfer.documentId, instruction: 'Already uploaded. Call read_document to continue.' });
+        }
+        path = transferMatch[1] === 'upload' ? '/api/convert' : '/api/export-review';
+      }
       if (req.method === 'POST' && ['/api/convert', '/api/text', '/api/validate-comments', '/api/export-review'].includes(path)) {
-        rate(req, 'processing', 120, 3600_000); const identity = auth(req);
+        rate(req, 'processing', 120, 3600_000); const identity = transfer ? transfer.identity : auth(req);
         const operation = { '/api/convert': 'convert', '/api/text': 'create_text_document', '/api/validate-comments': 'validate_comments', '/api/export-review': 'export_review' }[path];
         if (access) {
           let recorded = false;
@@ -207,8 +252,10 @@ export async function createService({ baseUrl = process.env.BASE_URL || 'http://
           res.once('finish', () => record(res.statusCode === 429 || res.statusCode === 503 ? 'limited' : res.statusCode < 400 ? 'success' : 'error'));
           res.once('close', () => record('cancelled'));
         }
-        if (activeRequests >= 2) throw failure('Two requests are already processing. Please retry in a moment.', 503);
-        activeRequests++;
+        if (activeRequests >= 32) throw failure('The service is busy. Please retry in a moment.', 503);
+        if (activeTransfers >= 2) throw failure('Two file transfers are already processing. Please retry in a moment.', 503);
+        if (transfer) transfer.busy = true;
+        activeTransfers++; activeRequests++;
         try {
           if (path === '/api/convert') {
             const filename = validateFilename(decodeURIComponent(req.headers['x-filename'] || ''));
@@ -219,6 +266,7 @@ export async function createService({ baseUrl = process.env.BASE_URL || 'http://
             catch (error) { settle(false); throw error; }
             buffer = null;
             const receipt = documents.put(document, identity?.id);
+            if (transfer) transfer.documentId = receipt.document_id;
             const result = { ...receipt, filename: document.filename, markdown: document.markdown, warnings: document.warnings, figures: document.assets.map(({ id, mimeType }) => ({ id, mime_type: mimeType })), instruction: 'First read get_review_instructions (or /llms.txt). Read the full Markdown and relevant guidance, complete technical, editorial, and reference passes, then combine findings and send document_id with comments and summary for validation and export.' };
             return send(res, 200, result);
           }
@@ -238,6 +286,7 @@ export async function createService({ baseUrl = process.env.BASE_URL || 'http://
             return send(res, 200, await reviewIsolated({ document: documents.get(document_id, identity?.id), comments }, 'validate', controller.signal));
           }
           const { document_id, ...review } = parseInput(exportSchema, body);
+          if (transfer && document_id !== transfer.documentId) throw failure('This export link belongs to a different document.', 403);
           body = null;
           const document = documents.get(document_id, identity?.id);
           const rendered = await reviewIsolated({ document, ...review }, 'render', controller.signal);
@@ -245,7 +294,7 @@ export async function createService({ baseUrl = process.env.BASE_URL || 'http://
           res.setHeader('Content-Disposition', 'attachment; filename="review.html"');
           res.setHeader('Content-Security-Policy', rendered.contentSecurityPolicy);
           return send(res, 200, rendered.html, 'text/html; charset=utf-8');
-        } finally { activeRequests--; }
+        } finally { activeRequests--; activeTransfers--; if (transfer) transfer.busy = false; }
       }
       if (req.method === 'GET' && staticFiles.has(path)) {
         const file = staticFiles.get(path), extension = file.slice(file.lastIndexOf('.'));
@@ -254,13 +303,17 @@ export async function createService({ baseUrl = process.env.BASE_URL || 'http://
       if (req.method === 'GET' && path === '/robots.txt') return send(res, 200, 'User-agent: *\nDisallow: /api/\n', 'text/plain');
       throw failure('Not found.', 404);
     } catch (error) {
+      req.resume();
       if (!res.destroyed && !res.headersSent) {
+        if (error.status === 401 && req.url === '/api/access/handoff') setBrowserCookie(res, '');
         if (error.status === 401) res.setHeader('WWW-Authenticate', protectApp ? `Bearer resource_metadata="${origin}/.well-known/oauth-protected-resource/mcp", scope="review"` : 'Bearer realm="AI peer review MCP"');
         if (error.status === 429 || error.status === 503) res.setHeader('Retry-After', error.message.startsWith('Daily limit') ? String(Math.ceil((Date.parse(new Date(Date.now() + 86400000).toISOString().slice(0, 10)) - Date.now()) / 1000)) : '60');
-        send(res, error.status || 400, { error: error.message });
+        if (req.method === 'GET' && /^\/transfer\/(upload|export)\/[A-Za-z0-9_-]{43}$/.test(req.url) && error.code === 'transfer_unavailable') return send(res, error.status, req.url.includes('/upload/') ? uploadPage(true) : exportPage(true), 'text/html; charset=utf-8');
+        send(res, error.status || 400, { error: error.message, ...(error instanceof ServiceError ? { code: error.code, action: error.action } : {}) });
       }
       else if (!res.destroyed) res.end();
     } finally {
+      bufferedBytes -= bufferedBodies.get(req) || 0; bufferedBodies.delete(req);
       requests.delete(controller);
       req.removeListener('aborted', abort);
       res.removeListener('close', abort);
@@ -269,6 +322,7 @@ export async function createService({ baseUrl = process.env.BASE_URL || 'http://
   const cleanup = setInterval(() => {
     access?.prune();
     documents.prune();
+    transfers.prune();
     for (const [id, entry] of rates) if (entry.expires <= Date.now()) rates.delete(id);
   }, 60_000);
   cleanup.unref();
@@ -280,7 +334,7 @@ export async function createService({ baseUrl = process.env.BASE_URL || 'http://
       if (new URL(origin).port === '0') origin = origin.replace(':0', `:${server.address().port}`);
       return origin;
     },
-    async close() { clearInterval(cleanup); for (const controller of requests) controller.abort(); rates.clear(); documents.clear(); await mcp.close(); server.closeAllConnections(); await new Promise(resolve => server.close(resolve)); access?.close(); },
+    async close() { clearInterval(cleanup); for (const controller of requests) controller.abort(); rates.clear(); transfers.clear(); documents.clear(); await mcp.close(); server.closeAllConnections(); await new Promise(resolve => server.close(resolve)); access?.close(); },
   };
 }
 

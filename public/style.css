@@ -17,3 +17,5 @@
 .authorize{display:block;width:100%;max-width:480px;margin:0 auto;padding:90px 0}.authorize h1{font-size:28px;margin-bottom:20px;overflow-wrap:anywhere}.authorize label{font-size:13px}.authorize p{overflow-wrap:anywhere}.authorize [role=alert]{color:#ffd6c5}.authorization-actions{display:flex;gap:24px;align-items:center;margin-top:24px}
 
 .intro .description{margin-top:20px;margin-bottom:24px}
+
+.upload-page input[type=file]{max-width:100%;font-size:13px;margin:12px 0}.upload-page input::file-selector-button{border:1px solid #ffffff66;background:transparent;color:#fff;padding:9px 12px;margin-right:12px;font:inherit;cursor:pointer}.upload-page #upload-status{margin-top:24px}

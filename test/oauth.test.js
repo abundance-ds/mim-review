@@ -6,6 +6,7 @@ import { join, resolve } from 'node:path';
 import { Client, StreamableHTTPClientTransport, auth } from '@modelcontextprotocol/client';
 import { createAccess } from '../src/access.js';
 import { createService } from '../src/server.js';
+import { docxFixture } from './fixtures.js';
 import { matchesCallback } from '../src/oauth.js';
 
 const admin = 'oauth-test-admin-credential-at-least-32-characters';
@@ -68,6 +69,15 @@ test('OAuth discovery and the real SDK complete DCR, PKCE, MCP, refresh and revo
   await client.connect(new StreamableHTTPClientTransport(new URL(origin + '/mcp'), { authProvider: provider }));
   const instructions = await client.callTool({ name: 'get_review_instructions', arguments: {} });
   assert.match(instructions.content[0].text, /Aim for 8-20 comments/);
+  // File tools receive only scoped transfer URLs, never the OAuth credential.
+  const upload = JSON.parse((await client.callTool({ name: 'prepare_document', arguments: { filename: 'oauth-file.docx' } })).content[0].text);
+  assert.equal(upload.requires_token, false);
+  const uploaded = await fetch(upload.url, { method: 'POST', headers: upload.headers, body: docxFixture() });
+  assert.equal(uploaded.status, 200);
+  const document = await uploaded.json();
+  const download = JSON.parse((await client.callTool({ name: 'prepare_export', arguments: { document_id: document.document_id } })).content[0].text);
+  const exported = await jsonPost(download.url, { document_id: document.document_id, summary: 'OAuth export fixture.', comments: [], coverage: { technical: 'skipped', editorial: 'skipped', references: 'skipped' }, limitations: ['Synthetic test only.'] });
+  assert.equal(exported.status, 200); assert.match(await exported.text(), /OAuth export fixture/);
   const oldTokens = tokens;
   const refresh = await formPost(origin + '/oauth/token', { grant_type: 'refresh_token', refresh_token: tokens.refresh_token, client_id: info.client_id, resource: origin + '/mcp' });
   assert.equal(refresh.status, 200); tokens = await refresh.json();
@@ -77,11 +87,12 @@ test('OAuth discovery and the real SDK complete DCR, PKCE, MCP, refresh and revo
   assert.equal(retried.access_token, tokens.access_token); assert.equal(retried.refresh_token, tokens.refresh_token);
   assert.ok(retried.expires_in >= 3598 && retried.expires_in <= 3600);
   const summary = await fetch(origin + '/api/admin/summary', { headers: { Authorization: 'Bearer ' + admin } }).then(r => r.json());
-  assert.equal(summary.keys.length, 1); assert.equal(summary.events[0].operation, 'get_review_instructions');
+  assert.equal(summary.keys.length, 1); assert.ok(summary.events.some(event => event.operation === 'get_review_instructions'));
   const disk = await readFile(path);
   for (const value of [tokens.access_token, tokens.refresh_token, oldTokens.access_token, oldTokens.refresh_token, verifier, returned.searchParams.get('code')]) assert.equal(disk.includes(Buffer.from(value)), false);
   await jsonPost(origin + '/api/admin/revoke-key', { id: summary.keys[0].id }, admin);
   assert.equal((await jsonPost(origin + '/mcp', {}, tokens.access_token)).status, 401);
+  assert.equal((await jsonPost(download.url, {})).status, 404);
   const revoked = await formPost(origin + '/oauth/token', { grant_type: 'refresh_token', refresh_token: tokens.refresh_token, client_id: info.client_id });
   assert.equal(revoked.status, 400); assert.equal((await revoked.json()).error, 'invalid_grant');
 });

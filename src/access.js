@@ -10,7 +10,7 @@ const derive = (token, purpose) => createHmac('sha256', token).update(`mim-revie
 const fail = (message, status = 400) => Object.assign(new Error(message), { status });
 export const equalSecret = (a, b) => !!a && !!b && timingSafeEqual(createHash('sha256').update(a).digest(), createHash('sha256').update(b).digest());
 export const bearer = req => /^Bearer ([A-Za-z0-9_.~+\/-]+={0,2})$/i.exec(req.headers.authorization || '')?.[1] || '';
-const operations = new Set(['convert', 'create_text_document', 'read_document', 'read_figure', 'delete_document', 'validate_comments', 'export_review', 'get_review_instructions', 'prepare_document', 'list_guidance', 'read_guidance', 'search_references']);
+const operations = new Set(['convert', 'create_text_document', 'read_document', 'read_figure', 'delete_document', 'validate_comments', 'export_review', 'get_review_instructions', 'prepare_document', 'get_upload_status', 'prepare_export', 'list_guidance', 'read_guidance', 'search_references']);
 const outcomes = new Set(['success', 'error', 'limited', 'cancelled']);
 const csvCell = value => '"' + String(value ?? '').replace(/^[=+@\-\t\r\n]/, "'$&").replaceAll('"', '""') + '"';
 
@@ -83,6 +83,13 @@ export function createAccess({ path, dailyLimit = 50, now = () => new Date() }) 
   prune();
   return {
     dailyLimit, authenticate, record, prune, oauth,
+    isActive(identity) {
+      if (!identity) return true;
+      const invitation = db.prepare('SELECT id FROM invitations WHERE id=? AND revoked=0').get(identity.id);
+      if (!invitation) return false;
+      return !!db.prepare("SELECT id FROM credentials WHERE id=? AND invitation_id=? AND kind='agent' AND revoked=0 AND (expires_at IS NULL OR expires_at>?)").get(identity.credential_id, identity.id, iso())
+        || oauth.isActive(identity.credential_id, identity.id);
+    },
     createInvitation(name) {
       if (typeof name !== 'string' || !name.trim() || name.length > 100 || /[\x00-\x1f\x7f]/.test(name)) throw fail('Enter a name of 1–100 characters.');
       const id = randomBytes(12).toString('hex'), alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';

@@ -1,10 +1,11 @@
 import assert from 'node:assert/strict';
 import http from 'node:http';
 import { createHash, randomBytes } from 'node:crypto';
-import { mkdir, mkdtemp } from 'node:fs/promises';
+import { mkdir, mkdtemp, writeFile } from 'node:fs/promises';
 import { resolve, join } from 'node:path';
 import puppeteer from 'puppeteer-core';
 import { Client, StreamableHTTPClientTransport } from '@modelcontextprotocol/client';
+import { docxFixture } from '../test/fixtures.js';
 import { createService } from '../src/server.js';
 
 await mkdir('data', { recursive: true });
@@ -77,16 +78,16 @@ try {
   assert.equal(prompt, await page.$eval('#setup-prompt', el => el.value));
   assert.match(prompt, /Connect to this MCP, confirm status using get_review_instructions/); assert.match(prompt, /await my manuscript for peer review/);
   const link = prompt.split('\n')[1];
-  assert.ok(link.startsWith(origin + '/connect/'));
-  assert.equal(await page.$eval('#mcp-url', el => el.value), origin + '/mcp');
+  assert.ok(link.startsWith(origin + '/mcp/'));
+  assert.equal(await page.$eval('#mcp-url', el => el.value), link);
   await page.click('#copy-url');
   await page.waitForFunction(() => document.getElementById('copy-url').dataset.copied === 'true');
-  assert.equal(await page.evaluate(() => navigator.clipboard.readText()), origin + '/mcp');
-  const setupText = await fetch(link).then(r => r.text());
+  assert.equal(await page.evaluate(() => navigator.clipboard.readText()), link);
+  const setupText = await fetch(link.replace('/mcp/', '/connect/')).then(r => r.text());
   const token = /Authorization header: Bearer (\S+)/.exec(setupText)[1];
-  assert.equal(await fetch(link).then(r => r.text()), setupText);
+  assert.equal(await fetch(link.replace('/mcp/', '/connect/')).then(r => r.text()), setupText);
   client = new Client({ name: 'browser-verification', version: '1' });
-  await client.connect(new StreamableHTTPClientTransport(new URL(origin + '/mcp'), { requestInit: { headers: { Authorization: 'Bearer ' + token } } }));
+  await client.connect(new StreamableHTTPClientTransport(new URL(link)));
   assert.equal((await client.callTool({ name: 'list_guidance', arguments: {} })).isError, undefined);
   await page.evaluate(() => { navigator.clipboard.writeText = async () => { throw new DOMException('Blocked', 'NotAllowedError'); }; });
   await page.click('#copy-prompt');
@@ -103,6 +104,19 @@ try {
   await page.setViewport({ width: 390, height: 844 });
   await page.screenshot({ path: join(directory, 'connected-mobile.png') });
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
+  // An agent that cannot POST bytes can hand the user a private upload page.
+  const upload = JSON.parse((await client.callTool({ name: 'prepare_document', arguments: { filename: 'browser-fixture.docx' } })).content[0].text);
+  const manuscript = join(directory, 'browser-fixture.docx'); await writeFile(manuscript, docxFixture());
+  const uploadPage = await browser.newPage();
+  await uploadPage.setViewport({ width: 390, height: 844 });
+  await uploadPage.goto(upload.browser_url);
+  await uploadPage.screenshot({ path: join(directory, 'upload-mobile.png') });
+  assert.equal(await uploadPage.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
+  await (await uploadPage.$('#manuscript')).uploadFile(manuscript);
+  await uploadPage.click('#upload-form button');
+  await uploadPage.waitForFunction(() => document.getElementById('upload-status').textContent.startsWith('Uploaded.'));
+  assert.equal((await client.callTool({ name: 'get_upload_status', arguments: { upload_id: upload.upload_id } })).isError, undefined);
+  await uploadPage.close();
   const callback = http.createServer((req, res) => { res.end('Connected'); });
   await new Promise(resolve => callback.listen(0, '127.0.0.1', resolve));
   try {
@@ -127,6 +141,15 @@ try {
       assert.equal(new URL(fresh.url()).searchParams.get('state'), 'browser-check');
     } finally { await freshContext.close(); }
   } finally { await new Promise(resolve => callback.close(resolve)); }
+  const snapshot = await fetch(origin + '/api/admin/summary', { headers: { Authorization: 'Bearer ' + adminToken } }).then(r => r.json());
+  const currentKey = snapshot.keys.find(key => !key.revoked);
+  await fetch(origin + '/api/admin/revoke-key', { method: 'POST', headers: { Authorization: 'Bearer ' + adminToken, 'Content-Type': 'application/json' }, body: JSON.stringify({ id: currentKey.id }) });
+  await page.goto(origin);
+  await page.waitForSelector('#invitation-form', { visible: true });
+  assert.equal(await page.$eval('#connection-fields', el => el.hidden), true);
+  await page.type('#invitation-code', code); await page.click('#invitation-form button');
+  await page.waitForFunction(() => !document.getElementById('copy-prompt').disabled && !document.getElementById('connection-fields').hidden);
+  assert.notEqual(await page.$eval('#mcp-url', el => el.value), link);
   await admin.bringToFront(); await admin.click('#refresh');
   await admin.waitForFunction(() => document.getElementById('events').textContent.includes('list_guidance'));
   await admin.$eval('#issued', el => { el.hidden = true; });
@@ -154,7 +177,7 @@ try {
     await page.waitForFunction(() => !document.getElementById('copy-prompt').disabled);
     assert.equal(await page.$eval('#invitation-form', el => el.hidden), true);
     assert.equal(await page.$eval('#mcp-url', el => el.value), openOrigin + '/mcp');
-    assert.ok((await page.$eval('#setup-prompt', el => el.value)).includes(openOrigin + '/info.md'));
+    assert.ok((await page.$eval('#setup-prompt', el => el.value)).includes(openOrigin + '/mcp'));
   } finally { await openService.close(); }
   assert.deepEqual(errors, []);
   console.log('Invitation, admin, mobile, clipboard handoff, MCP authentication, and revocation checks passed. Screenshots: ' + directory);

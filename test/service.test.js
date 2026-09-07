@@ -40,7 +40,7 @@ test('MCP and HTTP retain converted documents briefly and return standalone HTML
   const guidance = decode(await client.callTool({ name: 'list_guidance', arguments: {} }));
   assert.ok(guidance.some(chapter => chapter.id === 'statistics/01-pvalues'));
   const instructions = decode(await client.callTool({ name: 'prepare_document', arguments: { filename: 'study.docx' } }));
-  assert.equal(instructions.url, url + '/api/convert');
+  assert.ok(instructions.url.startsWith(url + '/transfer/upload/'));
   assert.equal(instructions.method, 'POST');
   assert.match(instructions.instruction, /document_id valid for 30 minutes/);
   const response = await fetch(instructions.url, { method: instructions.method, headers: instructions.headers, body: docxFixture() });
@@ -57,7 +57,7 @@ test('MCP and HTTP retain converted documents briefly and return standalone HTML
   const request = reviewFor(converted.document_id);
   const validation = decode(await client.callTool({ name: 'validate_comments', arguments: { document_id: converted.document_id, comments: request.comments } }));
   assert.equal(validation.valid, true);
-  const output = decode(await client.callTool({ name: 'export_review', arguments: request }));
+  const output = decode(await client.callTool({ name: 'export_review', arguments: { ...request, delivery: 'inline' } }));
   assert.equal(output.valid, true);
   assert.equal(output.primary.filename, 'review.html');
   assert.match(output.primary.text, /sample size/);
@@ -220,6 +220,6 @@ test('Setup guide uses the service origin and offers a readable HTML version', a
   assert.equal(htmlResponse.status, 200);
   assert.match(htmlResponse.headers.get('content-type'), /text\/html/);
   const html = await htmlResponse.text();
-  assert.match(html, /<h1>Get started<\/h1>/);
+  assert.match(html, /<h1>Connect<\/h1>/);
   assert.ok(html.includes(`href="${url}/health"`));
 });

@@ -19,3 +19,5 @@ The expanded reporting library credits each source in its own Markdown file; [so
 TIDieR, PRISMA-ScR, COREQ, SRQR, SQUIRE, JARS-Quant and ISPOR budget-impact entries restate factual checklist requirements; they do not reproduce article discussion or examples. Source publications retain their rights, and inclusion does not imply endorsement.
 
 PRISMA-S Table 1 retains source wording under CC BY 4.0. TECH-VER Table 2 retains source wording under **CC BY-NC 4.0**; its licence applies to that test bank. Each entry credits the authors and records formatting changes. PRISMA-NMA, AdViSHE and the RoB 2, GRADE, NICE, IQWiG, DARTH and ZIN guides restate factual requirements with source links; selected guides are explicitly distinguished from complete checklists.
+
+The MCP Apps upload/download interface bundles the official `@modelcontextprotocol/ext-apps` SDK under its upstream Apache-2.0/MIT transition terms. Its license is preserved in `ui/MCP-Apps-LICENSE`; upstream bundled license notices are retained in the generated interface.

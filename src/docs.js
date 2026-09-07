@@ -16,6 +16,6 @@ export const llmsIndex = workflowDocument;
 
 export function infoHtml(origin) {
   return `<!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Get started · AI peer review MCP</title><link rel="stylesheet" href="/style.css"></head>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Connect · mim-review MCP</title><link rel="stylesheet" href="/style.css"></head>
 <body><div class="page"><main class="info"><article>${markdownHtml(agentPage('info', origin))}</article></main><footer><a href="/">home</a><a href="/info.md">markdown</a></footer></div></body></html>`;
 }

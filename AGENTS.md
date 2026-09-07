@@ -16,7 +16,7 @@ Standalone Node service. No AI calls. The connected agent performs the review.
 - The homepage follows the owner’s mim-web visual style. Keep it framework-free.
 - Do not add Co-Authored-By lines to commits.
 
-- Product name: AI peer review MCP. Keep visible copy extremely minimal; keep setup in /info.md and all operational instructions in SKILL.md (also served at /llms.txt). Only substantial reference chapters stay separate.
+- Product name: mim-review MCP. Keep visible copy extremely minimal; keep setup in /info.md and all operational instructions in SKILL.md (also served at /llms.txt). Only substantial reference chapters stay separate.
 - Do not add branding or methodology/attribution links to the homepage. Preserve attribution in the repository and source guidance.
 
 - Keep homepage copy minimal without shortening the review methodology. Preserve detailed reviewer roles, independent-pass handoffs, per-reviewer depth guidance, and completeness checks when changing setup or transport instructions.
@@ -24,3 +24,5 @@ Standalone Node service. No AI calls. The connected agent performs the review.
 - Preserve the original Shoulders reviewer and synthesis prompts pinned in test/original-review-prompts.json. Changes to these prompts are limited to documented tool, submission, anchor, and Markdown mechanics unless the owner explicitly requests changes to review content. The main agent launches three parallel reviewers and performs synthesis itself.
 
 - Production deployment requires the owner’s local manual review and explicit confirmation.
+
+- The homepage must provide an actual MCP endpoint for both setup methods. Prefer scoped transfer URLs for upload/export; never require an agent to extract client-managed OAuth credentials or copy large HTML through model context. Preserve the original review content when updating these technical handoffs.

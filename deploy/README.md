@@ -39,3 +39,9 @@ Access tokens last one hour. Refresh tokens rotate automatically, remain usable 
 OAuth client registrations, short-lived authorization requests/codes, token hashes, a server-side rotation key, and grants live in the existing access metadata database. Never enable request or payload logging for `/oauth/*`, `/connect/*`, or invitation URLs. OAuth adds no document storage. Back up this database before deployment and preserve it across updates.
 
 Hosted client metadata is fetched only from HTTPS `/oauth/` paths on `claude.ai` and `chatgpt.com`, with bounded requests and no redirects. Other clients use dynamic registration with `token_endpoint_auth_method: none`. No custom credentials are required. The implementation targets the [MCP authorization specification](https://modelcontextprotocol.io/specification/2025-11-25/basic/authorization) and [Claude connector authentication](https://claude.com/docs/connectors/building/authentication).
+
+## Private MCP and file transfers
+
+The homepage's private `/mcp/<key>` URL is a real MCP endpoint and works with no additional authentication. Existing `/connect/<key>` URLs also accept MCP requests; plain document reads retain legacy setup instructions. Do not enable access logging for either route or `/transfer/*`: their URLs carry private capabilities.
+
+Upload/export capabilities live only in memory for 30 minutes, carry no filenames or content, and are scoped to their issuing connection. Revocation disables them. Restarting invalidates unfinished transfer links, so agents call `prepare_document` or `prepare_export` again. Access keys remain unchanged. Browser uploads expose a file picker; export accepts POST JSON and returns the review directly, never hosting an artifact. File processing remains limited to two workers; general MCP requests have a separate higher limit so three reviewers can read guidance concurrently.

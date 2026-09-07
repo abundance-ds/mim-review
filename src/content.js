@@ -1,3 +1,4 @@
+import { ServiceError } from './service-error.js';
 import { readFile, readdir } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { join } from 'node:path';
@@ -24,6 +25,6 @@ for (const category of ['statistics', 'reporting-standards', 'general', 'modelli
 export const listGuidance = () => [...entries.values()].map(({ content, ...entry }) => ({ ...entry, characters: content.length }));
 export function readGuidance(id) {
   const entry = entries.get(id);
-  if (!entry) throw new Error('Unknown guidance ID. Use list_guidance to find an exact ID.');
+  if (!entry) throw new ServiceError('guidance_unavailable', 'Unknown guidance ID.', 'Call list_guidance and use an exact returned ID.');
   return entry;
 }

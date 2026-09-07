@@ -13,8 +13,11 @@
     "test": "node --test test/*.test.js",
     "test:browser": "node scripts/check-reader.mjs",
     "check": "node --check src/server.js",
+    "build:mcp-app": "node scripts/build-mcp-app.mjs",
     "test:access-browser": "node scripts/check-access.mjs",
-    "test:codex-oauth": "node scripts/check-codex-oauth.mjs"
+    "test:codex-oauth": "node scripts/check-codex-oauth.mjs",
+    "test:claude-mcp": "node scripts/check-claude-mcp.mjs",
+    "test:mcp-app": "node scripts/check-mcp-app.mjs"
   },
   "dependencies": {
     "@modelcontextprotocol/node": "^2.0.0",
@@ -31,6 +34,8 @@
   },
   "devDependencies": {
     "@modelcontextprotocol/client": "^2.0.0",
+    "@modelcontextprotocol/ext-apps": "^1.7.5",
+    "esbuild": "^0.28.2",
     "pdf-lib": "^1.17.1",
     "puppeteer-core": "^25.10.0"
   }

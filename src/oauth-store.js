@@ -99,6 +99,7 @@ export function createOAuthStore(db, { now = () => new Date(), transaction }) {
         return issue(grant, refresh_token);
       }));
     },
+    isActive(id, invitationId) { const grant = activeGrant(id); return !!grant && grant.invitation_id === invitationId; },
     authenticate(token, resource) {
       const row = db.prepare("SELECT * FROM oauth_tokens WHERE token_hash=? AND kind='access' AND expires_at>?").get(hash(token), iso());
       const grant = row && activeGrant(row.grant_id);

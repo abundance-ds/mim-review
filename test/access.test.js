@@ -99,13 +99,13 @@ test('Protected HTTP and MCP flow stores only access metadata and requires disti
   const handoff = await handoffResponse.json();
   assert.equal(handoff.expires_in, undefined);
   assert.deepEqual(await post(url + '/api/access/handoff', {}, '', { Origin: url, Cookie: cookie }).then(r => r.json()), handoff);
-  const setup = await fetch(handoff.url);
+  const setup = await fetch(handoff.url.replace('/mcp/', '/connect/'));
   assert.equal(setup.headers.get('cache-control'), 'no-store');
   assert.match(setup.headers.get('x-robots-tag'), /noindex/);
   const setupText = await setup.text(), token = /Authorization header: Bearer (\S+)/.exec(setupText)[1];
   assert.equal(new URL(handoff.url).search, '');
   assert.ok(!handoff.url.includes(token));
-  assert.equal(await fetch(handoff.url).then(r => r.text()), setupText);
+  assert.equal(await fetch(handoff.url.replace('/mcp/', '/connect/')).then(r => r.text()), setupText);
   assert.equal((await fetch(url + '/api/admin/summary', { headers: { Authorization: 'Bearer ' + token } })).status, 401);
   assert.equal((await post(url + '/mcp?token=' + token, {})).status, 401);
   const client = new Client({ name: 'access-test', version: '1.0.0' });
@@ -130,7 +130,7 @@ test('Protected HTTP and MCP flow stores only access metadata and requires disti
   for (const text of ['PRIVATE-PAPER', 'PRIVATE-MANUSCRIPT', 'PRIVATE-COMMENTS', '24 volunteers', token, admin]) assert.equal(file.includes(Buffer.from(text)), false, text.startsWith('PRIVATE') ? text : 'No secrets or content on disk');
   assert.equal((await post(url + '/api/admin/revoke-invitation', { id: invitation.id }, admin)).status, 200);
   assert.equal((await post(url + '/mcp', {}, token)).status, 401);
-  assert.equal((await fetch(handoff.url)).status, 401);
+  assert.equal((await fetch(handoff.url.replace('/mcp/', '/connect/'))).status, 401);
   assert.equal((await post(url + '/api/access/handoff', {}, '', { Origin: url, Cookie: cookie })).status, 401);
 });
 

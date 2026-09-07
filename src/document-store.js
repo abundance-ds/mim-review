@@ -1,9 +1,10 @@
 import { randomBytes } from 'node:crypto';
+import { ServiceError } from './service-error.js';
 
 export const DOCUMENT_TTL_MS = 30 * 60 * 1000;
 const MAX_STORED_BYTES = 256 * 1024 * 1024;
 
-const failure = (message, status = 404) => Object.assign(new Error(message), { status });
+const failure = (message, status = 404) => new ServiceError(status === 404 ? 'document_unavailable' : 'document_too_large', message, status === 404 ? 'Reconvert the original Word/PDF with prepare_document, or register original plain text with create_text_document; then revalidate all comments. If only cached converted text remains, disclose missing figures and preserve the original extraction warnings in limitations.' : 'Use a smaller document.', status);
 
 export function createDocumentStore({ ttlMs = DOCUMENT_TTL_MS, maxBytes = MAX_STORED_BYTES, now = () => Date.now() } = {}) {
   const entries = new Map();
