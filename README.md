@@ -1,8 +1,10 @@
 # mim-review
 
-**AI peer review MCP** gives your agent document conversion, review guidance, reference lookup, and interactive HTML/Markdown downloads. Your agent supplies the AI and saves the review locally.
+**AI peer review MCP** gives your agent document conversion, review guidance, reference lookup, and interactive HTML/Markdown downloads. Your agent supplies the AI; the finished review is downloaded locally.
 
-Plain Node.js 24+ and HTML/CSS/JS. No Nuxt, frontend build, database server, or AI key.
+Hosted research preview: [review.abundanceds.com](https://review.abundanceds.com).
+
+Plain Node.js 24+ and HTML/CSS/JS. No framework, database server, or AI key. No build is required to run the repository; the MCP Apps interface is already bundled.
 
 ## Run
 
@@ -17,7 +19,7 @@ Open [localhost:3334](http://localhost:3334). Connect your agent to `http://loca
 ## Review
 
 1. The agent reviews existing text directly, or converts Word/PDF once and receives Markdown plus a 30-minute `document_id`.
-2. It reads the manuscript, warnings, and figures, then writes and validates the review using that ID.
+2. It reads the manuscript, warnings, figures, and relevant guidance. When delegation is available, it runs three parallel reviewers: Technical, Editorial, and Reference Checker. The main agent combines their findings, writes the summary, and validates the comments. Without delegation, it performs the three passes sequentially and discloses that limitation.
 3. File-tool agents use `prepare_export` to POST review JSON and save HTML directly. Interactive clients use `export_review` to show a download card; browsers without that support can export a supplied review.json. The standalone HTML embeds its data, figures, fonts, and downloads.
 
 The homepage shows one actual MCP URL for both setup methods. Private URLs include access; the canonical `/mcp` also supports OAuth. Upload/export links require no access to the client’s OAuth credentials. A browser file picker is available when the agent cannot upload Word/PDF bytes. Interactive clients provide upload and HTML-download cards. Other clients can attach review.json and a private browser export link; the user selects that file and downloads HTML. There is no silent Markdown-only fallback.
@@ -47,6 +49,7 @@ Reference lookup sends bibliography metadata to Crossref and optionally OpenAlex
 - [Setup](docs/agents/info.md)
 - [Complete agent instructions](skills/peer-review/SKILL.md), also served at `/llms.txt` and `/skill.md`
 - [Attribution](ATTRIBUTION.md)
+- [User journey and verification record](docs/user-journey.md)
 
 Run `npm test` for conversion, temporary document storage, MCP, API, and annotation checks. Run `npm run test:access-browser` for invitation, OAuth consent, admin, clipboard, mobile, and real MCP authentication checks. Run `npm run test:codex-oauth` with Codex installed to verify an actual CLI OAuth login against an isolated test service; set `OAUTH_REGISTRATION=cimd` to test hosted client metadata as well. Run `npm run test:browser` with Chrome installed (or `CHROME_PATH` set) for offline reader, download, mobile, and print checks. Browser test artifacts go in ignored `data/`.
 
